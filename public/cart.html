@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Giỏ hàng — VòngMáy</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: { display: ['Space Grotesk', 'sans-serif'], sans: ['Inter', 'sans-serif'] },
+      colors: {
+        brand: { 50:'#eef3ff',100:'#dce6ff',200:'#b8ccff',300:'#8aa9ff',400:'#5c86ff',500:'#3868ff',600:'#1f5eff',700:'#1747c9',800:'#143a9e',900:'#122f7d' },
+        ink: { 50:'#f7f7fb',100:'#e9eaf0',200:'#d3d5e0',300:'#b0b3c4',500:'#5b5f6b',700:'#33353d',900:'#141414' },
+      },
+    }},
+  };
+</script>
+<style>body{font-family:'Inter',sans-serif;background:#F7F7FB;} .font-display{font-family:'Space Grotesk',sans-serif;}</style>
+</head>
+<body class="min-h-screen text-ink-900">
+
+<div id="site-nav"></div>
+
+<main class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+  <h1 class="mb-6 font-display text-2xl font-bold sm:text-3xl">Giỏ hàng</h1>
+  <div id="cart-items" class="flex flex-col gap-4"></div>
+  <p id="cart-empty" class="hidden py-16 text-center text-ink-500">Giỏ hàng của bạn đang trống. <a href="/index.html" class="text-brand-600 underline">Tiếp tục mua sắm</a></p>
+
+  <div id="cart-summary" class="mt-6 flex flex-col items-end gap-3 border-t border-ink-100 pt-6">
+    <p class="text-lg">Tổng cộng: <span id="cart-total" class="font-display font-bold text-brand-600"></span></p>
+    <a id="checkout-link" href="/checkout.html" class="rounded-full bg-ink-900 px-6 py-3 text-center font-medium text-white hover:bg-brand-600">Tiến hành thanh toán</a>
+  </div>
+</main>
+
+<script src="/js/api.js"></script>
+<script src="/js/cart.js"></script>
+<script src="/js/nav.js"></script>
+<script>
+  function renderCart() {
+    const items = cartItemsArray();
+    const container = document.getElementById('cart-items');
+    const emptyEl = document.getElementById('cart-empty');
+    const summaryEl = document.getElementById('cart-summary');
+
+    if (items.length === 0) {
+      container.innerHTML = '';
+      emptyEl.classList.remove('hidden');
+      summaryEl.classList.add('hidden');
+      return;
+    }
+
+    emptyEl.classList.add('hidden');
+    summaryEl.classList.remove('hidden');
+
+    container.innerHTML = items
+      .map(
+        (item) => `
+      <div class="flex items-center gap-4 rounded-2xl border border-ink-100 bg-white p-4">
+        <img src="${item.image_url || 'https://placehold.co/100x100/eef3ff/1f5eff?text=No+Image'}" class="h-20 w-20 rounded-xl object-cover" alt="${escapeHtml(item.name)}" />
+        <div class="flex-1">
+          <p class="font-medium">${escapeHtml(item.name)}</p>
+          <p class="text-sm text-ink-500">${formatCurrency(item.price)}</p>
+        </div>
+        <div class="flex items-center rounded-full border border-ink-200">
+          <button data-id="${item.id}" data-action="minus" class="qty-btn h-9 w-9 text-lg">−</button>
+          <span class="w-8 text-center text-sm">${item.quantity}</span>
+          <button data-id="${item.id}" data-action="plus" class="qty-btn h-9 w-9 text-lg">+</button>
+        </div>
+        <p class="w-28 text-right font-medium">${formatCurrency(item.price * item.quantity)}</p>
+        <button data-id="${item.id}" class="remove-btn text-ink-400 hover:text-red-500" aria-label="Xoá">✕</button>
+      </div>
+    `
+      )
+      .join('');
+
+    document.getElementById('cart-total').textContent = formatCurrency(cartTotal());
+
+    container.querySelectorAll('.qty-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const cart = getCart();
+        const item = cart[btn.dataset.id];
+        const delta = btn.dataset.action === 'plus' ? 1 : -1;
+        const nextQty = item.quantity + delta;
+        if (item.stock && nextQty > item.stock) return;
+        updateCartQuantity(Number(btn.dataset.id), nextQty);
+        renderCart();
+      });
+    });
+
+    container.querySelectorAll('.remove-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        removeFromCart(Number(btn.dataset.id));
+        renderCart();
+      });
+    });
+  }
+
+  renderCart();
+</script>
+</body>
+</html>

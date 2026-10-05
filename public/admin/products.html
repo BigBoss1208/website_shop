@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Quản lý sản phẩm — VòngMáy</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: { display: ['Space Grotesk', 'sans-serif'], sans: ['Inter', 'sans-serif'] },
+      colors: {
+        brand: { 50:'#eef3ff',100:'#dce6ff',200:'#b8ccff',300:'#8aa9ff',400:'#5c86ff',500:'#3868ff',600:'#1f5eff',700:'#1747c9',800:'#143a9e',900:'#122f7d' },
+        ink: { 50:'#f7f7fb',100:'#e9eaf0',200:'#d3d5e0',300:'#b0b3c4',500:'#5b5f6b',700:'#33353d',900:'#141414' },
+      },
+    }},
+  };
+</script>
+<style>body{font-family:'Inter',sans-serif;background:#F7F7FB;} .font-display{font-family:'Space Grotesk',sans-serif;}</style>
+</head>
+<body class="min-h-screen text-ink-900">
+
+<div id="site-nav"></div>
+
+<main class="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <h1 class="font-display text-2xl font-bold sm:text-3xl">Quản lý sản phẩm</h1>
+    <nav class="flex gap-2 text-sm">
+      <a href="/admin/dashboard.html" class="rounded-full border border-ink-200 px-4 py-2 hover:border-brand-400">Tổng quan</a>
+      <a href="/admin/products.html" class="rounded-full bg-ink-900 px-4 py-2 text-white">Sản phẩm</a>
+      <a href="/admin/orders.html" class="rounded-full border border-ink-200 px-4 py-2 hover:border-brand-400">Đơn hàng</a>
+    </nav>
+  </div>
+
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink-100 bg-white p-4">
+    <p class="text-sm text-ink-500">Đồng bộ lại dữ liệu sản phẩm trong Cloudflare Vectorize.</p>
+    <button id="reindex-products" type="button" class="rounded-full border border-brand-500 px-4 py-2 text-sm font-medium text-brand-600 hover:bg-brand-50">
+      Re-index sản phẩm
+    </button>
+    <p id="reindex-status" class="w-full text-sm" role="status"></p>
+  </div>
+
+  <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
+    <!-- Danh sách sản phẩm -->
+    <div class="overflow-x-auto rounded-2xl border border-ink-100 bg-white">
+      <table class="w-full min-w-[660px] text-left text-sm">
+        <thead class="border-b border-ink-100 text-ink-500">
+          <tr>
+            <th class="px-4 py-3">Ảnh</th>
+            <th class="px-4 py-3">Tên</th>
+            <th class="px-4 py-3">Danh mục</th>
+            <th class="px-4 py-3">Giá</th>
+            <th class="px-4 py-3">Tồn kho</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody id="products-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Form thêm/sửa sản phẩm -->
+    <div class="h-fit rounded-2xl border border-ink-100 bg-white p-5">
+      <h2 id="form-title" class="mb-4 font-display text-lg font-bold">Thêm sản phẩm mới</h2>
+      <form id="product-form" class="flex flex-col gap-3">
+        <input type="hidden" id="product-id" />
+
+        <div>
+          <label class="mb-1 block text-sm font-medium">Tên sản phẩm</label>
+          <input id="name" type="text" required class="w-full rounded-xl border border-ink-200 px-3 py-2 outline-none focus:border-brand-500" />
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium">Mô tả</label>
+          <textarea id="description" rows="3" class="w-full rounded-xl border border-ink-200 px-3 py-2 outline-none focus:border-brand-500"></textarea>
+        </div>
+        <div>
+        <label for="category-id" class="mb-1 block text-sm font-medium">Danh mục</label>
+        <select id="category-id" class="w-full rounded-xl border border-ink-200 bg-white px-3 py-2 outline-none focus:border-brand-500">
+          <option value="">Chưa phân loại</option>
+        </select>
+        <div class="mt-2 flex gap-2">
+          <input id="new-category-name" type="text" maxlength="80" placeholder="Thêm danh mục mới"
+            class="min-w-0 flex-1 rounded-xl border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500" />
+          <button id="add-category" type="button" class="rounded-xl border border-ink-200 px-3 py-2 text-sm font-medium hover:border-brand-400">Thêm</button>
+        </div>
+        <p id="category-feedback" class="mt-1 hidden text-xs"></p>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="mb-1 block text-sm font-medium">Giá (VND)</label>
+            <input id="price" type="number" min="0" step="1000" required class="w-full rounded-xl border border-ink-200 px-3 py-2 outline-none focus:border-brand-500" />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium">Tồn kho</label>
+            <input id="stock" type="number" min="0" required class="w-full rounded-xl border border-ink-200 px-3 py-2 outline-none focus:border-brand-500" />
+          </div>
+        </div>
+
+        <div>
+          <label class="mb-1 block text-sm font-medium">Link ảnh sản phẩm (URL)</label>
+          <input
+            id="image-url"
+            type="url"
+            placeholder="https://example.com/anh-san-pham.jpg"
+            class="w-full rounded-xl border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500"
+          />
+          <p class="mt-1 text-xs text-ink-400">Dán link ảnh có sẵn trên internet. Chưa hỗ trợ upload file (cần bật R2).</p>
+          <img id="image-preview" class="mt-2 hidden h-24 w-24 rounded-xl object-cover" />
+        </div>
+
+        <p id="form-error" class="hidden text-sm font-medium text-red-500"></p>
+
+        <div class="mt-2 flex gap-2">
+          <button type="submit" id="submit-btn" class="flex-1 rounded-full bg-ink-900 py-2.5 font-medium text-white hover:bg-brand-600">Lưu sản phẩm</button>
+          <button type="button" id="cancel-edit-btn" class="hidden rounded-full border border-ink-200 px-4 py-2.5 font-medium hover:border-brand-400">Huỷ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</main>
+
+<script src="/js/api.js"></script>
+<script src="/js/cart.js"></script>
+<script src="/js/nav.js"></script>
+<script>
+  if (requireAdmin()) {
+    loadCategories().then(loadProducts).catch((err) => {
+      document.getElementById('category-feedback').textContent = err.message;
+      document.getElementById('category-feedback').classList.remove('hidden', 'text-green-600');
+      document.getElementById('category-feedback').classList.add('text-red-500');
+      loadProducts();
+    });
+  }
+
+  async function loadCategories() {
+    const select = document.getElementById('category-id');
+    const { data } = await apiFetch('/categories');
+    select.innerHTML =
+      '<option value="">Chưa phân loại</option>' +
+      data.map((category) => `<option value="${category.id}">${escapeHtml(category.name)}</option>`).join('');
+  }
+
+  async function loadProducts() {
+    const tbody = document.getElementById('products-body');
+    try {
+      const { data } = await apiFetch('/products?limit=50');
+      tbody.innerHTML = data
+        .map(
+          (p) => `
+        <tr class="border-b border-ink-50 last:border-0">
+          <td class="px-4 py-3">
+            <img src="${p.image_url || 'https://placehold.co/60x60/eef3ff/1f5eff?text=No+Img'}" class="h-12 w-12 rounded-lg object-cover" />
+          </td>
+          <td class="px-4 py-3 font-medium">${escapeHtml(p.name)}</td>
+          <td class="px-4 py-3">${escapeHtml(p.category_name || 'Chưa phân loại')}</td>
+          <td class="px-4 py-3">${formatCurrency(p.price)}</td>
+          <td class="px-4 py-3">${p.stock}</td>
+          <td class="px-4 py-3 text-right">
+            <button data-id="${p.id}" class="edit-btn mr-2 text-brand-600 hover:underline">Sửa</button>
+            <button data-id="${p.id}" class="delete-btn text-red-500 hover:underline">Xoá</button>
+          </td>
+        </tr>`
+        )
+        .join('');
+
+      tbody.querySelectorAll('.edit-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const product = data.find((p) => p.id === Number(btn.dataset.id));
+          fillForm(product);
+        });
+      });
+      tbody.querySelectorAll('.delete-btn').forEach((btn) => {
+        btn.addEventListener('click', () => deleteProduct(Number(btn.dataset.id)));
+      });
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-red-500">${err.message}</td></tr>`;
+    }
+  }
+
+  function fillForm(product) {
+    document.getElementById('form-title').textContent = `Sửa sản phẩm #${product.id}`;
+    document.getElementById('product-id').value = product.id;
+    document.getElementById('name').value = product.name;
+    document.getElementById('description').value = product.description || '';
+    document.getElementById('price').value = product.price;
+    document.getElementById('stock').value = product.stock;
+    document.getElementById('category-id').value = product.category_id ?? '';
+    document.getElementById('image-url').value = product.image_url || '';
+
+    updatePreview(product.image_url);
+
+    document.getElementById('cancel-edit-btn').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function updatePreview(url) {
+    const preview = document.getElementById('image-preview');
+    if (url) {
+      preview.src = url;
+      preview.classList.remove('hidden');
+    } else {
+      preview.classList.add('hidden');
+    }
+  }
+
+  function resetForm() {
+    document.getElementById('form-title').textContent = 'Thêm sản phẩm mới';
+    document.getElementById('product-form').reset();
+    document.getElementById('product-id').value = '';
+    document.getElementById('image-preview').classList.add('hidden');
+    document.getElementById('cancel-edit-btn').classList.add('hidden');
+  }
+
+  document.getElementById('cancel-edit-btn').addEventListener('click', resetForm);
+
+  document.getElementById('add-category').addEventListener('click', async () => {
+    const input = document.getElementById('new-category-name');
+    const feedback = document.getElementById('category-feedback');
+    const name = input.value.trim();
+    feedback.classList.add('hidden');
+
+    if (!name) {
+      feedback.textContent = 'Nhập tên danh mục trước.';
+      feedback.classList.remove('hidden', 'text-green-600');
+      feedback.classList.add('text-red-500');
+      return;
+    }
+
+    try {
+      const { data } = await apiFetch('/admin/categories', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      });
+      await loadCategories();
+      document.getElementById('category-id').value = String(data.id);
+      input.value = '';
+      feedback.textContent = `Đã thêm danh mục "${data.name}".`;
+      feedback.classList.remove('hidden', 'text-red-500');
+      feedback.classList.add('text-green-600');
+    } catch (err) {
+      feedback.textContent = err.message;
+      feedback.classList.remove('hidden', 'text-green-600');
+      feedback.classList.add('text-red-500');
+    }
+  });
+
+  document.getElementById('reindex-products').addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    const status = document.getElementById('reindex-status');
+    button.disabled = true;
+    status.textContent = 'Đang lập chỉ mục...';
+    status.classList.remove('text-red-500', 'text-green-600');
+
+    try {
+      const result = await apiFetch('/admin/products/reindex', { method: 'POST' });
+      status.textContent = `Đã lập chỉ mục ${result.indexed} sản phẩm.`;
+      status.classList.add('text-green-600');
+    } catch (err) {
+      status.textContent = err.message;
+      status.classList.add('text-red-500');
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  // Xem trước ảnh ngay khi người dùng dán/gõ link, không cần lưu mới thấy.
+  document.getElementById('image-url').addEventListener('input', (e) => {
+    updatePreview(e.target.value.trim());
+  });
+
+  document.getElementById('product-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const submitBtn = document.getElementById('submit-btn');
+    const errorEl = document.getElementById('form-error');
+    errorEl.classList.add('hidden');
+
+    const id = document.getElementById('product-id').value;
+    const imageUrl = document.getElementById('image-url').value.trim();
+
+    const payload = {
+      name: document.getElementById('name').value.trim(),
+      description: document.getElementById('description').value.trim(),
+      price: Number(document.getElementById('price').value),
+      stock: Number(document.getElementById('stock').value),
+      image_url: imageUrl || null,
+      category_id: document.getElementById('category-id').value
+        ? Number(document.getElementById('category-id').value)
+        : null,
+    };
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Đang lưu...';
+
+    try {
+      if (id) {
+        await apiFetch(`/admin/products/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+      } else {
+        await apiFetch('/admin/products', { method: 'POST', body: JSON.stringify(payload) });
+      }
+      resetForm();
+      loadProducts();
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.classList.remove('hidden');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Lưu sản phẩm';
+    }
+  });
+
+  async function deleteProduct(id) {
+    if (!confirm('Xoá sản phẩm này? Hành động không thể hoàn tác.')) return;
+    try {
+      await apiFetch(`/admin/products/${id}`, { method: 'DELETE' });
+      loadProducts();
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+</script>
+</body>
+</html>

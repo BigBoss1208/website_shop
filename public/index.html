@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VòngMáy — Cửa hàng thiết bị công nghệ</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { display: ['Space Grotesk', 'sans-serif'], sans: ['Inter', 'sans-serif'] },
+        colors: {
+          brand: { 50:'#eef3ff',100:'#dce6ff',200:'#b8ccff',300:'#8aa9ff',400:'#5c86ff',500:'#3868ff',600:'#1f5eff',700:'#1747c9',800:'#143a9e',900:'#122f7d' },
+          ink: { 50:'#f7f7fb',100:'#e9eaf0',200:'#d3d5e0',300:'#b0b3c4',500:'#5b5f6b',700:'#33353d',900:'#141414' },
+        },
+      },
+    },
+  };
+</script>
+<style>body{font-family:'Inter',sans-serif;background:#F7F7FB;} .font-display{font-family:'Space Grotesk',sans-serif;}</style>
+</head>
+<body class="min-h-screen text-ink-900">
+
+<div id="site-nav"></div>
+
+<main class="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+  <section class="mb-8">
+    <h1 class="font-display text-3xl font-bold sm:text-4xl">Thiết bị công nghệ, chọn lọc kỹ.</h1>
+    <p class="mt-2 max-w-xl text-ink-500">Bàn phím, chuột, tai nghe và màn hình — giao trong ngày tại nội thành.</p>
+  </section>
+
+  <form id="catalog-controls" class="mb-6 rounded-2xl border border-ink-100 bg-white p-3 sm:p-4">
+    <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:flex lg:items-center">
+      <div class="relative flex h-11 min-w-0 sm:col-span-2 lg:flex-1">
+        <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7" />
+          <path stroke-linecap="round" d="m16 16 4 4" />
+        </svg>
+        <input
+          id="product-search"
+          type="search"
+          maxlength="100"
+          aria-label="Tìm kiếm sản phẩm"
+          placeholder="Tìm tên, thương hiệu hoặc từ khóa..."
+          class="h-11 min-w-0 w-full rounded-xl border border-ink-200 bg-white pl-9 pr-11 text-sm outline-none transition-colors placeholder:text-ink-300 focus:border-brand-500"
+        />
+        <button
+          id="clear-search"
+          type="button"
+          aria-label="Xóa từ khóa tìm kiếm"
+          title="Xóa từ khóa"
+          class="hidden absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-lg leading-none text-ink-500 hover:bg-ink-50 hover:text-brand-600"
+        >×</button>
+      </div>
+      <select id="category-filter" aria-label="Danh mục" class="h-11 w-full min-w-0 rounded-xl border border-ink-200 bg-white px-3 text-sm outline-none transition-colors focus:border-brand-500 lg:w-[200px] lg:shrink-0">
+        <option value="">Tất cả sản phẩm</option>
+      </select>
+      <select id="price-filter" aria-label="Khoảng giá" class="h-11 w-full min-w-0 rounded-xl border border-ink-200 bg-white px-3 text-sm outline-none transition-colors focus:border-brand-500 lg:w-[205px] lg:shrink-0">
+        <option value="">Tất cả mức giá</option>
+        <option value="under_500k">Dưới 500.000đ</option>
+        <option value="500k_1m">500.000đ – 1.000.000đ</option>
+        <option value="1m_3m">Trên 1.000.000đ – 3.000.000đ</option>
+        <option value="3m_5m">Trên 3.000.000đ – 5.000.000đ</option>
+        <option value="over_5m">Trên 5.000.000đ</option>
+      </select>
+      <select id="sort-filter" aria-label="Sắp xếp" class="h-11 w-full min-w-0 rounded-xl border border-ink-200 bg-white px-3 text-sm outline-none transition-colors focus:border-brand-500 lg:w-[180px] lg:shrink-0">
+        <option value="default">Mặc định</option>
+        <option value="price_asc">Giá thấp → cao</option>
+        <option value="price_desc">Giá cao → thấp</option>
+        <option value="name_asc">Tên A → Z</option>
+        <option value="name_desc">Tên Z → A</option>
+      </select>
+      <button type="submit" class="flex h-11 w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-brand-600 px-4 font-medium text-white transition-colors hover:bg-brand-700 sm:col-span-2 lg:w-[150px] lg:shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7" />
+          <path stroke-linecap="round" d="m16 16 4 4" />
+        </svg>
+        <span>Tìm kiếm</span>
+      </button>
+    </div>
+    <div class="mt-2 flex justify-end">
+      <button id="reset-filters" type="button" class="text-xs font-medium text-ink-500 transition-colors hover:text-brand-600">Xóa bộ lọc</button>
+    </div>
+  </form>
+
+  <div id="product-grid" class="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+    <div class="h-72 animate-pulse rounded-2xl bg-ink-100"></div>
+    <div class="hidden h-72 animate-pulse rounded-2xl bg-ink-100 md:block"></div>
+    <div class="hidden h-72 animate-pulse rounded-2xl bg-ink-100 lg:block"></div>
+    <div class="hidden h-72 animate-pulse rounded-2xl bg-ink-100 lg:block"></div>
+  </div>
+
+  <p id="empty-state" class="hidden py-16 text-center text-ink-500">Chưa có sản phẩm nào. Quay lại sau nhé.</p>
+
+  <div id="pagination" class="mt-8 flex items-center justify-center gap-3"></div>
+</main>
+
+<script src="/js/api.js"></script>
+<script src="/js/cart.js"></script>
+<script src="/js/nav.js"></script>
+<script>
+  let currentPage = 1;
+  let activeRequest = 0;
+  const LIMIT = 12;
+
+  function productCard(product) {
+    const outOfStock = product.stock <= 0;
+    const favorite = isFavorite(product.id);
+    const img = product.image_url || 'https://placehold.co/400x400/eef3ff/1f5eff?text=No+Image';
+
+    return `
+      <div class="group flex flex-col overflow-hidden rounded-2xl border border-ink-100 bg-white transition-shadow hover:shadow-lg">
+        <a href="/product.html?id=${product.id}" class="block aspect-square overflow-hidden bg-ink-50">
+          <img src="${img}" alt="${escapeHtml(product.name)}" class="h-full w-full object-cover transition-transform group-hover:scale-105" loading="lazy" />
+        </a>
+        <div class="flex flex-1 flex-col gap-2 p-4">
+          <a href="/product.html?id=${product.id}" class="font-medium leading-snug text-ink-900 hover:text-brand-600">${escapeHtml(product.name)}</a>
+          <p class="mt-auto font-display text-lg font-bold text-brand-600">${formatCurrency(product.price)}</p>
+          <p class="text-xs ${outOfStock ? 'text-red-500' : 'text-ink-500'}">${outOfStock ? 'Hết hàng' : `Còn ${product.stock} sản phẩm`}</p>
+          <div class="mt-1 flex w-full items-center gap-1.5">
+            <button
+              data-id="${product.id}"
+              type="button"
+              aria-label="${favorite ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}"
+              title="${favorite ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}"
+              aria-pressed="${favorite}"
+              class="favorite-btn flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
+                favorite
+                  ? 'border-brand-200 bg-brand-50 text-brand-600'
+                  : 'border-ink-200 bg-white text-ink-500'
+              } text-base leading-none transition-colors hover:border-brand-400 hover:bg-brand-50 hover:text-brand-600"
+            >${favorite ? '♥' : '♡'}</button>
+            <button
+              data-id="${product.id}"
+              class="add-to-cart-btn h-11 min-w-0 flex-1 whitespace-nowrap rounded-full border border-ink-200 bg-white px-1.5 text-xs font-medium text-ink-900 transition-colors hover:border-brand-500 disabled:cursor-not-allowed disabled:bg-ink-100 disabled:text-ink-300 sm:px-2 sm:text-sm lg:px-0 lg:text-[10px] xl:px-1 xl:text-xs"
+              ${outOfStock ? 'disabled' : ''}
+            >
+              ${outOfStock ? 'Hết hàng' : 'Thêm vào giỏ'}
+            </button>
+            <button
+              data-id="${product.id}"
+              class="buy-now-btn h-11 shrink-0 whitespace-nowrap rounded-full bg-brand-600 px-1.5 text-xs font-medium text-white transition-colors hover:bg-ink-900 disabled:cursor-not-allowed disabled:bg-ink-200 sm:px-2 sm:text-sm lg:px-0 lg:text-[10px] xl:px-1 xl:text-xs"
+              ${outOfStock ? 'disabled' : ''}
+            >
+              ${outOfStock ? 'Hết hàng' : 'Mua ngay'}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async function loadCategories() {
+    const categoryFilter = document.getElementById('category-filter');
+    const { data } = await apiFetch('/categories');
+    categoryFilter.insertAdjacentHTML(
+      'beforeend',
+      data.map((category) => `<option value="${category.id}">${escapeHtml(category.name)}</option>`).join('')
+    );
+  }
+
+  function hasActiveFilters() {
+    return Boolean(
+      document.getElementById('product-search').value.trim() ||
+      document.getElementById('category-filter').value ||
+      document.getElementById('price-filter').value ||
+      document.getElementById('sort-filter').value !== 'default'
+    );
+  }
+
+  async function loadProducts(page = 1) {
+    const grid = document.getElementById('product-grid');
+    const emptyState = document.getElementById('empty-state');
+    const requestId = ++activeRequest;
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(LIMIT),
+      search: document.getElementById('product-search').value.trim(),
+      category_id: document.getElementById('category-filter').value,
+      price_range: document.getElementById('price-filter').value,
+      sort: document.getElementById('sort-filter').value,
+    });
+
+    try {
+      const { data, pagination } = await apiFetch(`/products?${params}`);
+      if (requestId !== activeRequest) return;
+      currentPage = pagination.page;
+
+      if (data.length === 0) {
+        grid.innerHTML = '';
+        emptyState.textContent = hasActiveFilters()
+          ? 'Không tìm thấy sản phẩm phù hợp.'
+          : 'Chưa có sản phẩm nào. Quay lại sau nhé.';
+        emptyState.classList.remove('hidden');
+      } else {
+        emptyState.classList.add('hidden');
+        grid.innerHTML = data.map(productCard).join('');
+
+        grid.querySelectorAll('.add-to-cart-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const product = data.find((p) => p.id === Number(btn.dataset.id));
+            addToCart(product, 1);
+            btn.textContent = 'Đã thêm ✓';
+            setTimeout(() => (btn.textContent = 'Thêm vào giỏ'), 1200);
+          });
+        });
+
+        grid.querySelectorAll('.favorite-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const product = data.find((p) => p.id === Number(btn.dataset.id));
+            const favorite = toggleFavorite(product);
+            const label = favorite ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích';
+            btn.textContent = favorite ? '♥' : '♡';
+            btn.setAttribute('aria-label', label);
+            btn.setAttribute('title', label);
+            btn.setAttribute('aria-pressed', String(favorite));
+            btn.classList.toggle('border-brand-200', favorite);
+            btn.classList.toggle('bg-brand-50', favorite);
+            btn.classList.toggle('text-brand-600', favorite);
+            btn.classList.toggle('border-ink-200', !favorite);
+            btn.classList.toggle('bg-white', !favorite);
+            btn.classList.toggle('text-ink-500', !favorite);
+          });
+        });
+
+        grid.querySelectorAll('.buy-now-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const product = data.find((p) => p.id === Number(btn.dataset.id));
+            setBuyNowItem(product, 1);
+            window.location.href = '/checkout.html?mode=buynow';
+          });
+        });
+      }
+
+      renderPagination(pagination);
+    } catch (err) {
+      if (requestId !== activeRequest) return;
+      grid.innerHTML = `<p class="col-span-full py-16 text-center text-red-500">${err.message}</p>`;
+      emptyState.classList.add('hidden');
+    }
+  }
+
+  function renderPagination(pagination) {
+    const el = document.getElementById('pagination');
+    if (pagination.totalPages <= 1) {
+      el.innerHTML = '';
+      return;
+    }
+
+    let html = '';
+    for (let p = 1; p <= pagination.totalPages; p++) {
+      html += `<button data-page="${p}" class="page-btn h-9 w-9 rounded-full text-sm font-medium ${
+        p === pagination.page ? 'bg-brand-600 text-white' : 'bg-white text-ink-700 border border-ink-200 hover:border-brand-400'
+      }">${p}</button>`;
+    }
+    el.innerHTML = html;
+    el.querySelectorAll('.page-btn').forEach((btn) => {
+      btn.addEventListener('click', () => loadProducts(Number(btn.dataset.page)));
+    });
+  }
+
+  const searchInput = document.getElementById('product-search');
+  const clearSearchButton = document.getElementById('clear-search');
+
+  document.getElementById('catalog-controls').addEventListener('submit', (event) => {
+    event.preventDefault();
+    loadProducts(1);
+  });
+
+  searchInput.addEventListener('input', () => {
+    clearSearchButton.classList.toggle('hidden', searchInput.value.length === 0);
+  });
+
+  clearSearchButton.addEventListener('click', () => {
+    searchInput.value = '';
+    clearSearchButton.classList.add('hidden');
+    loadProducts(1);
+    searchInput.focus();
+  });
+
+  ['category-filter', 'price-filter', 'sort-filter'].forEach((id) => {
+    document.getElementById(id).addEventListener('change', () => loadProducts(1));
+  });
+
+  document.getElementById('reset-filters').addEventListener('click', () => {
+    document.getElementById('catalog-controls').reset();
+    clearSearchButton.classList.add('hidden');
+    loadProducts(1);
+  });
+
+  loadCategories()
+    .catch((err) => {
+      document.getElementById('category-filter').insertAdjacentHTML(
+        'beforeend',
+        '<option value="" disabled>Không thể tải danh mục</option>'
+      );
+      console.error('Could not load product categories.', err);
+    })
+    .finally(() => loadProducts(1));
+</script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Quản lý đơn hàng — VòngMáy</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: { display: ['Space Grotesk', 'sans-serif'], sans: ['Inter', 'sans-serif'] },
+      colors: {
+        brand: { 50:'#eef3ff',100:'#dce6ff',200:'#b8ccff',300:'#8aa9ff',400:'#5c86ff',500:'#3868ff',600:'#1f5eff',700:'#1747c9',800:'#143a9e',900:'#122f7d' },
+        ink: { 50:'#f7f7fb',100:'#e9eaf0',200:'#d3d5e0',300:'#b0b3c4',500:'#5b5f6b',700:'#33353d',900:'#141414' },
+      },
+    }},
+  };
+</script>
+<style>body{font-family:'Inter',sans-serif;background:#F7F7FB;} .font-display{font-family:'Space Grotesk',sans-serif;}</style>
+</head>
+<body class="min-h-screen text-ink-900">
+
+<div id="site-nav"></div>
+
+<main class="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <h1 class="font-display text-2xl font-bold sm:text-3xl">Quản lý đơn hàng</h1>
+    <nav class="flex gap-2 text-sm">
+      <a href="/admin/dashboard.html" class="rounded-full border border-ink-200 px-4 py-2 hover:border-brand-400">Tổng quan</a>
+      <a href="/admin/products.html" class="rounded-full border border-ink-200 px-4 py-2 hover:border-brand-400">Sản phẩm</a>
+      <a href="/admin/orders.html" class="rounded-full bg-ink-900 px-4 py-2 text-white">Đơn hàng</a>
+    </nav>
+  </div>
+
+  <div class="mb-4 flex flex-wrap gap-2" id="status-filter">
+    <button data-status="" class="filter-btn rounded-full bg-ink-900 px-4 py-1.5 text-sm text-white">Tất cả</button>
+    <button data-status="pending" class="filter-btn rounded-full border border-ink-200 px-4 py-1.5 text-sm hover:border-brand-400">Chờ xử lý</button>
+    <button data-status="processing" class="filter-btn rounded-full border border-ink-200 px-4 py-1.5 text-sm hover:border-brand-400">Đang xử lý</button>
+    <button data-status="completed" class="filter-btn rounded-full border border-ink-200 px-4 py-1.5 text-sm hover:border-brand-400">Hoàn tất</button>
+    <button data-status="cancelled" class="filter-btn rounded-full border border-ink-200 px-4 py-1.5 text-sm hover:border-brand-400">Đã huỷ</button>
+  </div>
+
+  <div class="overflow-x-auto rounded-2xl border border-ink-100 bg-white">
+    <table class="w-full min-w-[720px] text-left text-sm">
+      <thead class="border-b border-ink-100 text-ink-500">
+        <tr>
+          <th class="px-4 py-3">Mã đơn</th>
+          <th class="px-4 py-3">Khách hàng</th>
+          <th class="px-4 py-3">Địa chỉ giao hàng</th>
+          <th class="px-4 py-3">Tổng tiền</th>
+          <th class="px-4 py-3">Ngày tạo</th>
+          <th class="px-4 py-3">Trạng thái</th>
+        </tr>
+      </thead>
+      <tbody id="orders-body"></tbody>
+    </table>
+  </div>
+</main>
+
+<script src="/js/api.js"></script>
+<script src="/js/cart.js"></script>
+<script src="/js/nav.js"></script>
+<script>
+  if (requireAdmin()) loadOrders('');
+
+  const STATUSES = ['pending', 'processing', 'completed', 'cancelled'];
+  const STATUS_LABEL = {
+    pending: 'Chờ xử lý',
+    processing: 'Đang xử lý',
+    completed: 'Hoàn tất',
+    cancelled: 'Đã huỷ',
+  };
+
+  document.querySelectorAll('.filter-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach((b) => {
+        b.className = 'filter-btn rounded-full border border-ink-200 px-4 py-1.5 text-sm hover:border-brand-400';
+      });
+      btn.className = 'filter-btn rounded-full bg-ink-900 px-4 py-1.5 text-sm text-white';
+      loadOrders(btn.dataset.status);
+    });
+  });
+
+  async function loadOrders(status) {
+    const tbody = document.getElementById('orders-body');
+    tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-ink-500">Đang tải...</td></tr>`;
+
+    try {
+      const query = status ? `?status=${status}&limit=100` : '?limit=100';
+      const { data } = await apiFetch(`/admin/orders${query}`);
+
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-ink-500">Không có đơn hàng nào.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data
+        .map(
+          (o) => `
+        <tr class="border-b border-ink-50 last:border-0">
+          <td class="px-4 py-3 font-medium">#${o.id}</td>
+          <td class="px-4 py-3">${escapeHtml(o.user_name)}<br/><span class="text-xs text-ink-500">${escapeHtml(o.user_email)}</span></td>
+          <td class="max-w-xs truncate px-4 py-3 text-ink-500" title="${escapeHtml(o.shipping_address)}">${escapeHtml(o.shipping_address)}</td>
+          <td class="px-4 py-3">${formatCurrency(o.total_price)}</td>
+          <td class="px-4 py-3 text-ink-500">${new Date(o.created_at).toLocaleDateString('vi-VN')}</td>
+          <td class="px-4 py-3">
+            <select data-id="${o.id}" class="status-select rounded-lg border border-ink-200 px-2 py-1.5 text-sm outline-none focus:border-brand-500">
+              ${STATUSES.map((s) => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}
+            </select>
+          </td>
+        </tr>`
+        )
+        .join('');
+
+      tbody.querySelectorAll('.status-select').forEach((select) => {
+        select.addEventListener('change', async () => {
+          const originalValue = select.dataset.original || select.value;
+          try {
+            await apiFetch(`/admin/orders/${select.dataset.id}`, {
+              method: 'PUT',
+              body: JSON.stringify({ status: select.value }),
+            });
+          } catch (err) {
+            alert(err.message);
+            select.value = originalValue;
+          }
+        });
+      });
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-red-500">${err.message}</td></tr>`;
+    }
+  }
+</script>
+</body>
+</html>

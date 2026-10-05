@@ -1,0 +1,57 @@
+name = "cf-ecommerce"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# ---------------------------------------------------------------------------
+# D1 Database binding
+# Sau khi chạy `wrangler d1 create ecommerce-db`, copy "database_id" nó trả về
+# và dán vào bên dưới.
+# ---------------------------------------------------------------------------
+[[d1_databases]]
+binding = "DB"
+database_name = "ecommerce-db"
+
+database_id = "36cfb7db-08dd-4ee8-b427-c99b79a5b2ab"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "shoplite-products"
+remote = true
+
+[ai]
+binding = "AI"
+remote = true
+
+[[ratelimits]]
+name = "CHAT_RATE_LIMITER"
+namespace_id = "932715"
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60
+# ---------------------------------------------------------------------------
+# R2 Bucket binding — dùng để lưu ảnh sản phẩm
+# Tạo bucket bằng: wrangler r2 bucket create ecommerce-images
+# ---------------------------------------------------------------------------
+#[[r2_buckets]]
+#binding = "MY_BUCKET"
+#bucket_name = "ecommerce-images"
+
+# ---------------------------------------------------------------------------
+# Biến môi trường (KHÔNG dùng JWT_SECRET này khi deploy thật).
+# Khi deploy production, hãy chạy: wrangler secret put JWT_SECRET
+# để ghi đè giá trị này bằng secret được mã hoá.
+# ---------------------------------------------------------------------------
+[vars]
+JWT_SECRET = "dev-secret-change-me-please-1234567890"
+
+# ---------------------------------------------------------------------------
+# Static Assets (Front-End) — Worker chỉ can thiệp vào /api/* và /images/*.
+# Mọi request khác (index.html, css, js, ...) được Cloudflare phục vụ thẳng
+# từ thư mục ./public mà không cần chạy qua Worker code.
+# ---------------------------------------------------------------------------
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/images/*"]

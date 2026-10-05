@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sản phẩm yêu thích — VòngMáy</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      fontFamily: { display: ['Space Grotesk', 'sans-serif'], sans: ['Inter', 'sans-serif'] },
+      colors: {
+        brand: { 50:'#eef3ff',100:'#dce6ff',200:'#b8ccff',300:'#8aa9ff',400:'#5c86ff',500:'#3868ff',600:'#1f5eff',700:'#1747c9',800:'#143a9e',900:'#122f7d' },
+        ink: { 50:'#f7f7fb',100:'#e9eaf0',200:'#d3d5e0',300:'#b0b3c4',500:'#5b5f6b',700:'#33353d',900:'#141414' },
+      },
+    }},
+  };
+</script>
+<style>body{font-family:'Inter',sans-serif;background:#F7F7FB;} .font-display{font-family:'Space Grotesk',sans-serif;}</style>
+</head>
+<body class="min-h-screen text-ink-900">
+
+<div id="site-nav"></div>
+
+<main class="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+  <div class="mb-6 flex items-center gap-3">
+    <h1 class="font-display text-2xl font-bold sm:text-3xl">Sản phẩm yêu thích</h1>
+    <span aria-hidden="true" class="text-2xl text-brand-600">♥</span>
+  </div>
+  <div id="favorites-grid" class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"></div>
+  <p id="favorites-empty" class="hidden py-16 text-center text-ink-500">
+    Bạn chưa có sản phẩm yêu thích nào.
+    <a href="/index.html" class="text-brand-600 underline">Khám phá sản phẩm</a>
+  </p>
+</main>
+
+<script src="/js/api.js"></script>
+<script src="/js/cart.js"></script>
+<script src="/js/nav.js"></script>
+<script>
+  async function loadFavorites() {
+    const grid = document.getElementById('favorites-grid');
+    const empty = document.getElementById('favorites-empty');
+    const saved = getFavorites();
+
+    updateFavoritesBadge();
+    if (saved.length === 0) {
+      grid.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+
+    try {
+      const products = await Promise.all(
+        saved.map(async (favorite) => {
+          const { data } = await apiFetch(`/products/${favorite.id}`);
+          return data;
+        })
+      );
+
+      empty.classList.add('hidden');
+      grid.innerHTML = products
+        .map((product) => `
+          <article class="group flex flex-col overflow-hidden rounded-2xl border border-ink-100 bg-white transition-shadow hover:shadow-lg">
+            <a href="/product.html?id=${product.id}" class="block aspect-square overflow-hidden bg-ink-50">
+              <img src="${product.image_url || 'https://placehold.co/400x400/eef3ff/1f5eff?text=No+Image'}" alt="${escapeHtml(product.name)}" class="h-full w-full object-cover transition-transform group-hover:scale-105" loading="lazy" />
+            </a>
+            <div class="flex flex-1 flex-col gap-2 p-4">
+              <a href="/product.html?id=${product.id}" class="font-medium leading-snug text-ink-900 hover:text-brand-600">${escapeHtml(product.name)}</a>
+              <p class="mt-auto font-display text-lg font-bold text-brand-600">${formatCurrency(product.price)}</p>
+              <p class="text-xs ${product.stock <= 0 ? 'text-red-500' : 'text-ink-500'}">${product.stock <= 0 ? 'Hết hàng' : `Còn ${product.stock} sản phẩm`}</p>
+              <div class="mt-1 flex items-center gap-2">
+                <button data-remove-id="${product.id}" type="button" aria-label="Xóa khỏi yêu thích" title="Xóa khỏi yêu thích" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-brand-200 bg-brand-50 text-xl leading-none text-brand-600 transition-colors hover:border-brand-400">♥</button>
+                <button data-buy-now-id="${product.id}" type="button" class="h-11 min-w-0 flex-1 whitespace-nowrap rounded-full bg-brand-600 px-1.5 text-xs font-medium text-white transition-colors hover:bg-ink-900 disabled:cursor-not-allowed disabled:bg-ink-200 sm:text-sm" ${product.stock <= 0 ? 'disabled' : ''}>Mua ngay</button>
+              </div>
+            </div>
+          </article>
+        `)
+        .join('');
+
+      grid.querySelectorAll('[data-remove-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          removeFavorite(Number(button.dataset.removeId));
+          loadFavorites();
+        });
+      });
+      grid.querySelectorAll('[data-buy-now-id]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const product = products.find((item) => item.id === Number(button.dataset.buyNowId));
+          setBuyNowItem(product, 1);
+          window.location.href = '/checkout.html?mode=buynow';
+        });
+      });
+    } catch (error) {
+      grid.innerHTML = `<p class="col-span-full py-16 text-center text-red-500">${escapeHtml(error.message)}</p>`;
+      empty.classList.add('hidden');
+    }
+  }
+
+  loadFavorites();
+</script>
+</body>
+</html>

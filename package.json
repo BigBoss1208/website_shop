@@ -1,0 +1,24 @@
+{
+  "name": "cf-ecommerce",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create ecommerce-db",
+    "db:migrate:local": "wrangler d1 execute ecommerce-db --local --file=./schema.sql",
+    "db:migrate:remote": "wrangler d1 execute ecommerce-db --remote --file=./schema.sql",
+    "db:migrate:categories:local": "wrangler d1 execute ecommerce-db --local --file=./migrations/0001_add_categories.sql",
+    "db:migrate:categories:remote": "wrangler d1 execute ecommerce-db --remote --file=./migrations/0001_add_categories.sql",
+    "bucket:create": "wrangler r2 bucket create ecommerce-images",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.6.9"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20250101.0",
+    "typescript": "^5.6.2",
+    "wrangler": "^4.20.0"
+  }
+}

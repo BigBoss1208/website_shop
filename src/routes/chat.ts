@@ -7,7 +7,10 @@ import {
   type ProductSource,
 } from '../lib/rag';
 
-const chat = new Hono<{ Bindings: Env; Variables: AppVariables }>();
+const chat = new Hono<{
+  Bindings: Env;
+  Variables: AppVariables;
+}>();
 
 // =====================================================
 // TYPES
@@ -29,7 +32,7 @@ type ProductRow = {
 };
 
 // =====================================================
-// HELPER
+// HELPER: CHUẨN HÓA TEXT
 // =====================================================
 
 function normalizeText(text: string) {
@@ -43,11 +46,20 @@ function normalizeText(text: string) {
     .trim();
 }
 
+// =====================================================
+// HELPER: FORMAT GIÁ
+// =====================================================
+
 function formatPrice(price: number) {
   return (
-    new Intl.NumberFormat('vi-VN').format(price) + 'đ'
+    new Intl.NumberFormat('vi-VN').format(price) +
+    'đ'
   );
 }
+
+// =====================================================
+// HELPER: PRODUCT -> SOURCE CARD
+// =====================================================
 
 function toSources(
   products: ProductRow[]
@@ -57,18 +69,27 @@ function toSources(
     name: product.name,
     price: product.price,
     stock: product.stock,
-    image_url: product.image_url ?? undefined,
+
+    // ProductSource yêu cầu string | null
+    image_url: product.image_url ?? null,
+
+    // ProductSource yêu cầu string | null
     category_name:
-      product.category_name ?? undefined,
+      product.category_name ?? null,
   }));
 }
+
+// =====================================================
+// HELPER: QUERY D1
+// =====================================================
 
 async function getProducts(
   env: Env,
   sql: string,
   params: unknown[] = []
 ): Promise<ProductRow[]> {
-  const statement = env.DB.prepare(sql);
+  const statement =
+    env.DB.prepare(sql);
 
   const { results } =
     params.length > 0
@@ -80,6 +101,10 @@ async function getProducts(
   return results ?? [];
 }
 
+// =====================================================
+// SQL PRODUCT CƠ BẢN
+// =====================================================
+
 const PRODUCT_SELECT = `
   SELECT
     p.*,
@@ -90,32 +115,95 @@ const PRODUCT_SELECT = `
 `;
 
 // =====================================================
-// TÁCH GIÁ TỪ CÂU HỎI
-// Ví dụ:
-// "dưới 2 triệu"
-// "dưới 500k"
+// PHÁT HIỆN DANH MỤC
+//
+// DB:
+// Màn Hinh
+// Bàn Phím
+// Chuột
+// PC
 // =====================================================
 
-function extractMoney(text: string): number | null {
-  const normalized = normalizeText(text);
+function detectCategory(
+  text: string
+): string | null {
+  const q = normalizeText(text);
 
-  const millionMatch = normalized.match(
+  // MÀN HÌNH
+  if (
+    q.includes('man hinh') ||
+    q.includes('monitor')
+  ) {
+    return 'Màn Hinh';
+  }
+
+  // BÀN PHÍM
+  if (
+    q.includes('ban phim') ||
+    q.includes('keyboard')
+  ) {
+    return 'Bàn Phím';
+  }
+
+  // CHUỘT
+  if (
+    q.includes('chuot') ||
+    q.includes('mouse')
+  ) {
+    return 'Chuột';
+  }
+
+  // PC
+  if (
+    /\bpc\b/.test(q) ||
+    q.includes('may tinh de ban') ||
+    q.includes('may tinh gaming')
+  ) {
+    return 'PC';
+  }
+
+  return null;
+}
+
+// =====================================================
+// TÁCH GIÁ TỪ CÂU HỎI
+//
+// 2 triệu -> 2.000.000
+// 500k -> 500.000
+// =====================================================
+
+function extractMoney(
+  text: string
+): number | null {
+  const q = normalizeText(text);
+
+  // Ví dụ:
+  // 2 triệu
+  // 2.5 triệu
+  // 2tr
+  const millionMatch = q.match(
     /(\d+(?:\.\d+)?)\s*(trieu|tr)/
   );
 
   if (millionMatch) {
     return (
-      Number(millionMatch[1]) * 1_000_000
+      Number(millionMatch[1]) *
+      1_000_000
     );
   }
 
-  const thousandMatch = normalized.match(
+  // Ví dụ:
+  // 500k
+  // 500 nghìn
+  // 500 ngàn
+  const thousandMatch = q.match(
     /(\d+(?:\.\d+)?)\s*(nghin|ngan|k)/
   );
 
   if (thousandMatch) {
     return (
-      Number(thousandMatch[1]) * 1_000
+      Number(thousandMatch[1]) *
+      1_000
     );
   }
 
@@ -123,7 +211,7 @@ function extractMoney(text: string): number | null {
 }
 
 // =====================================================
-// ROUTE
+// ROUTE CHAT
 // =====================================================
 
 chat.post('/', async (c) => {
@@ -143,7 +231,8 @@ chat.post('/', async (c) => {
   if (!message) {
     return c.json(
       {
-        error: 'Vui lòng nhập câu hỏi.',
+        error:
+          'Vui lòng nhập câu hỏi.',
       },
       400
     );
@@ -164,8 +253,9 @@ chat.post('/', async (c) => {
   // ===================================================
 
   const ipAddress =
-    c.req.header('CF-Connecting-IP') ??
-    'unknown';
+    c.req.header(
+      'CF-Connecting-IP'
+    ) ?? 'unknown';
 
   const { success } =
     await c.env.CHAT_RATE_LIMITER.limit({
@@ -183,10 +273,21 @@ chat.post('/', async (c) => {
   }
 
   try {
-    const q = normalizeText(message);
+    // =================================================
+    // 3. PHÂN TÍCH CÂU HỎI
+    // =================================================
+
+    const q =
+      normalizeText(message);
+
+    const detectedCategory =
+      detectCategory(message);
+
+    const money =
+      extractMoney(message);
 
     // =================================================
-    // 3. CHÀO HỎI
+    // 4. CHÀO HỎI
     // =================================================
 
     const greetings = [
@@ -204,56 +305,58 @@ chat.post('/', async (c) => {
       return c.json({
         answer:
           'Xin chào! Tôi là trợ lý VòngMáy. ' +
-          'Tôi có thể giúp bạn tìm sản phẩm, so sánh sản phẩm, ' +
-          'kiểm tra giá, tồn kho, tư vấn mua hàng và hướng dẫn sử dụng cửa hàng.',
+          'Tôi có thể giúp bạn tìm sản phẩm, kiểm tra giá, ' +
+          'tồn kho, so sánh, tư vấn mua hàng và hướng dẫn sử dụng cửa hàng.',
         sources: [] as ProductSource[],
       });
     }
 
     // =================================================
-    // 4. CHATBOT LÀM ĐƯỢC GÌ?
+    // 5. CHATBOT LÀM ĐƯỢC GÌ?
     // =================================================
 
     if (
       q.includes('ban lam duoc gi') ||
-      q.includes('chatbot lam duoc gi') ||
+      q.includes(
+        'chatbot lam duoc gi'
+      ) ||
       q.includes('giup duoc gi') ||
       q.includes('ho tro gi')
     ) {
       return c.json({
         answer:
-          'Tôi có thể giúp bạn tìm và tư vấn sản phẩm, ' +
-          'kiểm tra giá và tồn kho, tìm sản phẩm rẻ hoặc đắt nhất, ' +
-          'so sánh sản phẩm, gợi ý theo nhu cầu/ngân sách, ' +
-          'hướng dẫn thêm vào giỏ, mua ngay, thanh toán, ' +
-          'xem sản phẩm yêu thích và theo dõi đơn hàng.',
+          'Tôi có thể tìm kiếm và tư vấn sản phẩm, ' +
+          'kiểm tra giá và tồn kho, tìm sản phẩm rẻ nhất hoặc đắt nhất, ' +
+          'gợi ý sản phẩm theo ngân sách và nhu cầu, ' +
+          'hỗ trợ so sánh sản phẩm và hướng dẫn sử dụng cửa hàng.',
         sources: [] as ProductSource[],
       });
     }
 
     // =================================================
-    // 5. HƯỚNG DẪN THANH TOÁN
+    // 6. THANH TOÁN
     // =================================================
 
     if (
       q.includes('thanh toan') ||
       q.includes('cach tra tien') ||
-      q.includes('tra tien nhu the nao')
+      q.includes(
+        'tra tien nhu the nao'
+      )
     ) {
       return c.json({
         answer:
-          'Để thanh toán, bạn hãy chọn sản phẩm muốn mua → ' +
+          'Để thanh toán, bạn chọn sản phẩm muốn mua → ' +
           'nhấn "Thêm vào giỏ" hoặc "Mua ngay" → ' +
-          'kiểm tra sản phẩm và số lượng → ' +
-          'tiến hành thanh toán → nhập thông tin nhận hàng ' +
-          'và chọn phương thức thanh toán mà website đang hỗ trợ → ' +
-          'xác nhận đặt hàng.',
+          'kiểm tra sản phẩm và số lượng → tiến hành thanh toán → ' +
+          'nhập thông tin nhận hàng → chọn phương thức thanh toán ' +
+          'mà website đang hỗ trợ → xác nhận đặt hàng.',
         sources: [] as ProductSource[],
       });
     }
 
     // =================================================
-    // 6. HƯỚNG DẪN GIỎ HÀNG
+    // 7. GIỎ HÀNG
     // =================================================
 
     if (
@@ -265,44 +368,55 @@ chat.post('/', async (c) => {
         answer:
           'Để thêm sản phẩm vào giỏ hàng, bạn tìm sản phẩm muốn mua ' +
           'và nhấn "Thêm vào giỏ". Sau đó mở mục "Giỏ hàng" ' +
-          'trên thanh menu để xem sản phẩm, thay đổi số lượng ' +
-          'và tiếp tục thanh toán.',
+          'để xem sản phẩm, điều chỉnh số lượng và tiến hành thanh toán.',
         sources: [] as ProductSource[],
       });
     }
 
     // =================================================
-    // 7. HƯỚNG DẪN MUA NGAY
+    // 8. MUA NGAY / CÁCH MUA
     // =================================================
 
     if (
       q.includes('mua ngay') ||
       q.includes('cach mua') ||
-      q.includes('mua nhu the nao') ||
-      q.includes('lam sao de mua') ||
-      q.includes('huong dan mua') ||
-      q.includes('cach dat hang')
+      q.includes(
+        'mua nhu the nao'
+      ) ||
+      q.includes(
+        'lam sao de mua'
+      ) ||
+      q.includes(
+        'huong dan mua'
+      ) ||
+      q.includes(
+        'cach dat hang'
+      )
     ) {
       return c.json({
         answer:
           'Bạn có thể mua theo 2 cách. ' +
-          'Nếu chỉ muốn mua nhanh một sản phẩm, hãy nhấn "Mua ngay". ' +
-          'Nếu muốn mua nhiều sản phẩm, hãy nhấn "Thêm vào giỏ", ' +
+          'Nếu muốn mua nhanh một sản phẩm, nhấn "Mua ngay". ' +
+          'Nếu muốn mua nhiều sản phẩm, nhấn "Thêm vào giỏ", ' +
           'sau đó mở "Giỏ hàng" và tiến hành thanh toán.',
         sources: [] as ProductSource[],
       });
     }
 
     // =================================================
-    // 8. HƯỚNG DẪN XEM ĐƠN
+    // 9. ĐƠN HÀNG
     // =================================================
 
     if (
       q.includes('don cua toi') ||
       q.includes('xem don hang') ||
       q.includes('theo doi don') ||
-      q.includes('kiem tra don hang') ||
-      q.includes('don hang cua toi')
+      q.includes(
+        'kiem tra don hang'
+      ) ||
+      q.includes(
+        'don hang cua toi'
+      )
     ) {
       return c.json({
         answer:
@@ -313,24 +427,26 @@ chat.post('/', async (c) => {
     }
 
     // =================================================
-    // 9. HƯỚNG DẪN YÊU THÍCH
+    // 10. YÊU THÍCH
     // =================================================
 
     if (
       q.includes('yeu thich') ||
-      q.includes('them yeu thich')
+      q.includes(
+        'them yeu thich'
+      )
     ) {
       return c.json({
         answer:
-          'Bạn nhấn biểu tượng trái tim trên sản phẩm để thêm vào ' +
-          'danh sách yêu thích. Sau đó mở mục "Yêu thích" ' +
-          'trên thanh menu để xem lại các sản phẩm đã lưu.',
+          'Bạn nhấn biểu tượng trái tim trên sản phẩm để thêm sản phẩm ' +
+          'vào danh sách yêu thích. Sau đó mở mục "Yêu thích" ' +
+          'để xem lại các sản phẩm đã lưu.',
         sources: [] as ProductSource[],
       });
     }
 
     // =================================================
-    // 10. ĐĂNG NHẬP
+    // 11. ĐĂNG NHẬP
     // =================================================
 
     if (
@@ -340,49 +456,56 @@ chat.post('/', async (c) => {
       return c.json({
         answer:
           'Bạn mở trang "Đăng nhập", nhập tài khoản và mật khẩu ' +
-          'đã đăng ký rồi nhấn nút đăng nhập. ' +
-          'Nếu chưa có tài khoản, bạn cần đăng ký trước.',
+          'đã đăng ký rồi nhấn đăng nhập. Nếu chưa có tài khoản, ' +
+          'bạn cần đăng ký trước.',
         sources: [] as ProductSource[],
       });
     }
 
     // =================================================
-    // 11. ĐĂNG KÝ
+    // 12. ĐĂNG KÝ
     // =================================================
 
     if (
       q.includes('dang ky') ||
-      q.includes('tao tai khoan')
+      q.includes(
+        'tao tai khoan'
+      )
     ) {
       return c.json({
         answer:
           'Bạn mở trang "Đăng ký", nhập các thông tin được yêu cầu ' +
-          'và tạo tài khoản. Sau khi đăng ký thành công, ' +
-          'bạn có thể đăng nhập để mua hàng và xem đơn hàng.',
+          'và tạo tài khoản. Sau đó bạn có thể đăng nhập để mua hàng.',
         sources: [] as ProductSource[],
       });
     }
 
     // =================================================
-    // 12. TÌM KIẾM / LỌC
+    // 13. HƯỚNG DẪN TÌM KIẾM
     // =================================================
 
     if (
-      q.includes('cach tim san pham') ||
-      q.includes('tim kiem nhu the nao') ||
-      q.includes('cach loc san pham')
+      q.includes(
+        'cach tim san pham'
+      ) ||
+      q.includes(
+        'tim kiem nhu the nao'
+      ) ||
+      q.includes(
+        'cach loc san pham'
+      )
     ) {
       return c.json({
         answer:
           'Bạn có thể nhập tên sản phẩm vào ô tìm kiếm. ' +
-          'Ngoài ra, cửa hàng có thể lọc theo danh mục, khoảng giá ' +
-          'và sắp xếp sản phẩm để giúp bạn tìm nhanh hơn.',
+          'Ngoài ra có thể sử dụng danh mục, khoảng giá và sắp xếp ' +
+          'để tìm sản phẩm phù hợp nhanh hơn.',
         sources: [] as ProductSource[],
       });
     }
 
     // =================================================
-    // 13. NHU CẦU TƯ VẤN CHUNG
+    // 14. TƯ VẤN CHUNG
     // =================================================
 
     const generalShoppingRequests = [
@@ -412,117 +535,264 @@ chat.post('/', async (c) => {
     }
 
     // =================================================
-    // 14. RẺ NHẤT
+    // 15. RẺ NHẤT
+    //
+    // màn hình rẻ nhất -> chỉ Màn Hinh
+    // chuột rẻ nhất    -> chỉ Chuột
+    // bàn phím rẻ nhất -> chỉ Bàn Phím
+    // PC rẻ nhất       -> chỉ PC
+    //
+    // chỉ "rẻ nhất" -> toàn shop
     // =================================================
 
     if (
       q.includes('re nhat') ||
-      q.includes('gia thap nhat')
+      q.includes(
+        'gia thap nhat'
+      )
     ) {
-      const products = await getProducts(
-        c.env,
-        `
-        ${PRODUCT_SELECT}
-        WHERE p.stock > 0
-        ORDER BY p.price ASC
-        LIMIT 3
-        `
-      );
+      let products: ProductRow[];
+
+      // Có danh mục
+      if (detectedCategory) {
+        products =
+          await getProducts(
+            c.env,
+            `
+            ${PRODUCT_SELECT}
+
+            WHERE p.stock > 0
+              AND c.name = ?
+
+            ORDER BY p.price ASC
+
+            LIMIT 3
+            `,
+            [detectedCategory]
+          );
+      }
+
+      // Không có danh mục
+      else {
+        products =
+          await getProducts(
+            c.env,
+            `
+            ${PRODUCT_SELECT}
+
+            WHERE p.stock > 0
+
+            ORDER BY p.price ASC
+
+            LIMIT 3
+            `
+          );
+      }
 
       if (products.length === 0) {
         return c.json({
           answer:
-            'Hiện tại cửa hàng không có sản phẩm còn hàng.',
-          sources: [],
+            detectedCategory
+              ? `Hiện tại tôi không tìm thấy sản phẩm thuộc danh mục ${detectedCategory} đang còn hàng.`
+              : 'Hiện tại cửa hàng không có sản phẩm còn hàng.',
+
+          sources:
+            [] as ProductSource[],
         });
       }
 
-      const product = products[0];
+      const product =
+        products[0];
+
+      if (detectedCategory) {
+        return c.json({
+          answer:
+            `${product.name} là sản phẩm thuộc danh mục ${detectedCategory} ` +
+            `có giá rẻ nhất hiện đang còn hàng. ` +
+            `Giá ${formatPrice(product.price)}, ` +
+            `hiện còn ${product.stock} sản phẩm. ` +
+            `Tôi cũng hiển thị thêm các sản phẩm cùng danh mục có giá gần nhất để bạn tham khảo.`,
+
+          sources:
+            toSources(products),
+        });
+      }
 
       return c.json({
         answer:
-          `Sản phẩm rẻ nhất hiện đang còn hàng là ` +
+          `Sản phẩm rẻ nhất toàn cửa hàng hiện đang còn hàng là ` +
           `${product.name}, giá ${formatPrice(product.price)}. ` +
-          `Hiện còn ${product.stock} sản phẩm. ` +
-          `Tôi cũng hiển thị thêm các sản phẩm có mức giá gần nhất để bạn tham khảo.`,
-        sources: toSources(products),
+          `Hiện còn ${product.stock} sản phẩm.`,
+
+        sources:
+          toSources(products),
       });
     }
 
     // =================================================
-    // 15. ĐẮT NHẤT
+    // 16. ĐẮT NHẤT
+    //
+    // màn hình đắt nhất -> chỉ màn hình
+    // chuột đắt nhất -> chỉ chuột
+    // ...
     // =================================================
 
     if (
       q.includes('dat nhat') ||
-      q.includes('gia cao nhat')
+      q.includes(
+        'gia cao nhat'
+      )
     ) {
-      const products = await getProducts(
-        c.env,
-        `
-        ${PRODUCT_SELECT}
-        WHERE p.stock > 0
-        ORDER BY p.price DESC
-        LIMIT 3
-        `
-      );
+      let products: ProductRow[];
+
+      if (detectedCategory) {
+        products =
+          await getProducts(
+            c.env,
+            `
+            ${PRODUCT_SELECT}
+
+            WHERE p.stock > 0
+              AND c.name = ?
+
+            ORDER BY p.price DESC
+
+            LIMIT 3
+            `,
+            [detectedCategory]
+          );
+      } else {
+        products =
+          await getProducts(
+            c.env,
+            `
+            ${PRODUCT_SELECT}
+
+            WHERE p.stock > 0
+
+            ORDER BY p.price DESC
+
+            LIMIT 3
+            `
+          );
+      }
 
       if (products.length === 0) {
         return c.json({
           answer:
-            'Hiện tại cửa hàng không có sản phẩm còn hàng.',
-          sources: [],
+            detectedCategory
+              ? `Hiện tại tôi không tìm thấy sản phẩm thuộc danh mục ${detectedCategory} đang còn hàng.`
+              : 'Hiện tại cửa hàng không có sản phẩm còn hàng.',
+
+          sources:
+            [] as ProductSource[],
         });
       }
 
-      const product = products[0];
+      const product =
+        products[0];
+
+      if (detectedCategory) {
+        return c.json({
+          answer:
+            `${product.name} là sản phẩm thuộc danh mục ${detectedCategory} ` +
+            `có giá cao nhất hiện tại. ` +
+            `Giá ${formatPrice(product.price)}, ` +
+            `hiện còn ${product.stock} sản phẩm.`,
+
+          sources:
+            toSources(products),
+        });
+      }
 
       return c.json({
         answer:
-          `Sản phẩm có giá cao nhất hiện tại là ` +
+          `Sản phẩm có giá cao nhất toàn cửa hàng là ` +
           `${product.name}, giá ${formatPrice(product.price)}. ` +
           `Hiện còn ${product.stock} sản phẩm.`,
-        sources: toSources(products),
+
+        sources:
+          toSources(products),
       });
     }
 
     // =================================================
-    // 16. TÌM SẢN PHẨM DƯỚI NGÂN SÁCH
-    // Ví dụ: dưới 2 triệu
+    // 17. SẢN PHẨM DƯỚI NGÂN SÁCH
+    //
+    // "dưới 2 triệu"
+    // -> toàn shop
+    //
+    // "chuột dưới 2 triệu"
+    // -> Chuột
+    //
+    // "màn hình dưới 5 triệu"
+    // -> Màn Hinh
     // =================================================
-
-    const money = extractMoney(message);
 
     if (
       money !== null &&
       (
         q.includes('duoi') ||
-        q.includes('khong qua') ||
+        q.includes(
+          'khong qua'
+        ) ||
         q.includes('toi da')
       )
     ) {
-      const products = await getProducts(
-        c.env,
-        `
-        ${PRODUCT_SELECT}
-        WHERE p.stock > 0
-          AND p.price <= ?
-        ORDER BY p.price DESC
-        LIMIT 8
-        `,
-        [money]
-      );
+      let products: ProductRow[];
+
+      if (detectedCategory) {
+        products =
+          await getProducts(
+            c.env,
+            `
+            ${PRODUCT_SELECT}
+
+            WHERE p.stock > 0
+              AND p.price <= ?
+              AND c.name = ?
+
+            ORDER BY p.price DESC
+
+            LIMIT 8
+            `,
+            [
+              money,
+              detectedCategory,
+            ]
+          );
+      } else {
+        products =
+          await getProducts(
+            c.env,
+            `
+            ${PRODUCT_SELECT}
+
+            WHERE p.stock > 0
+              AND p.price <= ?
+
+            ORDER BY p.price DESC
+
+            LIMIT 8
+            `,
+            [money]
+          );
+      }
 
       if (products.length === 0) {
         return c.json({
           answer:
-            `Hiện tôi chưa tìm thấy sản phẩm còn hàng có giá không quá ${formatPrice(money)}.`,
-          sources: [],
+            detectedCategory
+              ? `Hiện tôi chưa tìm thấy sản phẩm ${detectedCategory} còn hàng có giá không quá ${formatPrice(money)}.`
+              : `Hiện tôi chưa tìm thấy sản phẩm còn hàng có giá không quá ${formatPrice(money)}.`,
+
+          sources:
+            [] as ProductSource[],
         });
       }
 
-      // Cho AI tư vấn dựa trên những sản phẩm
-      // thực sự nằm trong ngân sách.
+      // Cho Llama tư vấn dựa trên
+      // đúng các sản phẩm đã lọc từ D1
       const answer =
         await generateProductAnswer(
           c.env.AI,
@@ -532,73 +802,140 @@ chat.post('/', async (c) => {
 
       return c.json({
         answer,
-        sources: toSources(products),
+
+        sources:
+          toSources(products),
       });
     }
 
     // =================================================
-    // 17. SẢN PHẨM CÒN HÀNG
+    // 18. SẢN PHẨM CÒN HÀNG
     // =================================================
 
     if (
       q === 'con hang' ||
-      q.includes('san pham con hang') ||
-      q.includes('nhung san pham con hang')
+      q.includes(
+        'san pham con hang'
+      ) ||
+      q.includes(
+        'nhung san pham con hang'
+      )
     ) {
-      const products = await getProducts(
-        c.env,
-        `
-        ${PRODUCT_SELECT}
-        WHERE p.stock > 0
-        ORDER BY p.id DESC
-        LIMIT 8
-        `
-      );
+      let products: ProductRow[];
+
+      if (detectedCategory) {
+        products =
+          await getProducts(
+            c.env,
+            `
+            ${PRODUCT_SELECT}
+
+            WHERE p.stock > 0
+              AND c.name = ?
+
+            ORDER BY p.id DESC
+
+            LIMIT 8
+            `,
+            [detectedCategory]
+          );
+      } else {
+        products =
+          await getProducts(
+            c.env,
+            `
+            ${PRODUCT_SELECT}
+
+            WHERE p.stock > 0
+
+            ORDER BY p.id DESC
+
+            LIMIT 8
+            `
+          );
+      }
 
       return c.json({
         answer:
           products.length > 0
-            ? `Dưới đây là ${products.length} sản phẩm đang còn hàng.`
-            : 'Hiện tại chưa có sản phẩm còn hàng.',
-        sources: toSources(products),
+            ? detectedCategory
+              ? `Tôi tìm thấy ${products.length} sản phẩm ${detectedCategory} đang còn hàng.`
+              : `Tôi đang hiển thị ${products.length} sản phẩm còn hàng.`
+            : detectedCategory
+              ? `Hiện không có sản phẩm ${detectedCategory} còn hàng.`
+              : 'Hiện tại chưa có sản phẩm còn hàng.',
+
+        sources:
+          toSources(products),
       });
     }
 
     // =================================================
-    // 18. SẢN PHẨM HẾT HÀNG
+    // 19. SẢN PHẨM HẾT HÀNG
     // =================================================
 
     if (
-      q.includes('het hang') ||
-      q.includes('san pham het hang')
+      q.includes('het hang')
     ) {
-      const products = await getProducts(
-        c.env,
-        `
-        ${PRODUCT_SELECT}
-        WHERE p.stock <= 0
-        ORDER BY p.id DESC
-        LIMIT 8
-        `
-      );
+      let products: ProductRow[];
+
+      if (detectedCategory) {
+        products =
+          await getProducts(
+            c.env,
+            `
+            ${PRODUCT_SELECT}
+
+            WHERE p.stock <= 0
+              AND c.name = ?
+
+            ORDER BY p.id DESC
+
+            LIMIT 8
+            `,
+            [detectedCategory]
+          );
+      } else {
+        products =
+          await getProducts(
+            c.env,
+            `
+            ${PRODUCT_SELECT}
+
+            WHERE p.stock <= 0
+
+            ORDER BY p.id DESC
+
+            LIMIT 8
+            `
+          );
+      }
 
       if (products.length === 0) {
         return c.json({
           answer:
-            'Hiện tại tôi không thấy sản phẩm nào hết hàng.',
-          sources: [],
+            detectedCategory
+              ? `Hiện tôi không thấy sản phẩm ${detectedCategory} nào hết hàng.`
+              : 'Hiện tại tôi không thấy sản phẩm nào hết hàng.',
+
+          sources:
+            [] as ProductSource[],
         });
       }
 
       return c.json({
         answer:
-          `Có ${products.length} sản phẩm đang hết hàng.`,
-        sources: toSources(products),
+          detectedCategory
+            ? `Có ${products.length} sản phẩm ${detectedCategory} đang hết hàng.`
+            : `Có ${products.length} sản phẩm đang hết hàng.`,
+
+        sources:
+          toSources(products),
       });
     }
 
     // =================================================
-    // 19. LIỆT KÊ SẢN PHẨM
+    // 20. LIỆT KÊ SẢN PHẨM
     // =================================================
 
     const listQuestions = [
@@ -624,67 +961,103 @@ chat.post('/', async (c) => {
           q.includes(item)
       )
     ) {
-      const products = await getProducts(
-        c.env,
-        `
-        ${PRODUCT_SELECT}
-        ORDER BY p.id DESC
-        LIMIT 8
-        `
-      );
+      let products: ProductRow[];
+
+      // Ví dụ:
+      // "có những màn hình nào"
+      // nếu detectCategory được
+      if (detectedCategory) {
+        products =
+          await getProducts(
+            c.env,
+            `
+            ${PRODUCT_SELECT}
+
+            WHERE c.name = ?
+
+            ORDER BY p.id DESC
+
+            LIMIT 8
+            `,
+            [detectedCategory]
+          );
+      } else {
+        products =
+          await getProducts(
+            c.env,
+            `
+            ${PRODUCT_SELECT}
+
+            ORDER BY p.id DESC
+
+            LIMIT 8
+            `
+          );
+      }
 
       if (products.length === 0) {
         return c.json({
           answer:
-            'Hiện tại cửa hàng chưa có sản phẩm.',
-          sources: [],
+            detectedCategory
+              ? `Hiện chưa có sản phẩm thuộc danh mục ${detectedCategory}.`
+              : 'Hiện tại cửa hàng chưa có sản phẩm.',
+
+          sources:
+            [] as ProductSource[],
         });
       }
 
       return c.json({
         answer:
-          `Tôi đang hiển thị ${products.length} sản phẩm của cửa hàng. ` +
-          `Bạn có thể hỏi tôi về giá, tồn kho hoặc nhờ tôi tư vấn và so sánh.`,
-        sources: toSources(products),
+          detectedCategory
+            ? `Dưới đây là các sản phẩm thuộc danh mục ${detectedCategory}.`
+            : `Tôi đang hiển thị ${products.length} sản phẩm của cửa hàng.`,
+
+        sources:
+          toSources(products),
       });
     }
 
     // =================================================
-    // 20. HOT / BÁN CHẠY
+    // 21. HOT / BÁN CHẠY
+    //
+    // Chưa tính vì cần dữ liệu order_items
+    // Không để AI tự bịa
     // =================================================
 
     if (
       q.includes('hot nhat') ||
-      q.includes('san pham hot') ||
-      q.includes('ban chay nhat') ||
-      q.includes('pho bien nhat')
+      q.includes(
+        'san pham hot'
+      ) ||
+      q.includes(
+        'ban chay nhat'
+      ) ||
+      q.includes(
+        'pho bien nhat'
+      )
     ) {
-      /*
-       * KHÔNG tự bịa sản phẩm hot.
-       *
-       * Bước tiếp theo có thể JOIN bảng orders /
-       * order_items để tính SUM(quantity).
-       */
-
       return c.json({
         answer:
-          'Sản phẩm hot/bán chạy cần được xác định từ dữ liệu đơn hàng và số lượng thực tế đã bán. ' +
-          'Hiện tôi chưa sử dụng dữ liệu doanh số để xếp hạng nên sẽ không tự chọn một sản phẩm ngẫu nhiên. ' +
-          'Bạn có thể hỏi tôi về sản phẩm rẻ nhất, giá, tồn kho, so sánh hoặc sản phẩm phù hợp với nhu cầu.',
-        sources: [] as ProductSource[],
+          'Để xác định sản phẩm hot hoặc bán chạy nhất chính xác, ' +
+          'tôi cần dựa trên dữ liệu đơn hàng và số lượng sản phẩm đã bán. ' +
+          'Hiện chatbot chưa sử dụng dữ liệu doanh số để xếp hạng nên tôi sẽ không tự bịa sản phẩm hot.',
+
+        sources:
+          [] as ProductSource[],
       });
     }
 
     // =================================================
-    // 21. RAG
+    // 22. RAG
     //
-    // Các câu như:
-    // - Có chuột Logitech không?
-    // - Tìm bàn phím gaming
-    // - Màn hình cho chơi game
-    // - So sánh A với B
-    // - A hay B tốt hơn?
-    // - Tư vấn sản phẩm
+    // Các câu còn lại:
+    //
+    // "Có chuột Logitech không?"
+    // "Tìm màn hình gaming"
+    // "Tư vấn chuột chơi game"
+    // "So sánh A với B"
+    // "Con nào phù hợp chơi game?"
     // =================================================
 
     const matches =
@@ -693,23 +1066,35 @@ chat.post('/', async (c) => {
         message
       );
 
-    if (matches.length === 0) {
+    // =================================================
+    // 23. KHÔNG TÌM THẤY
+    // =================================================
+
+    if (
+      matches.length === 0
+    ) {
       return c.json({
         answer:
-          NO_PRODUCT_ANSWER ||
-          'Tôi chưa tìm thấy sản phẩm phù hợp. Hãy thử cho tôi biết loại sản phẩm, hãng, ngân sách hoặc nhu cầu sử dụng.',
-        sources: [] as ProductSource[],
+          NO_PRODUCT_ANSWER,
+
+        sources:
+          [] as ProductSource[],
       });
     }
 
     // =================================================
-    // 22. AI TẠO CÂU TRẢ LỜI
+    // 24. LẤY SẢN PHẨM
     // =================================================
 
     const products =
       matches.map(
-        (match) => match.product
+        (match) =>
+          match.product
       );
+
+    // =================================================
+    // 25. AI TẠO CÂU TRẢ LỜI
+    // =================================================
 
     const answer =
       await generateProductAnswer(
@@ -719,22 +1104,36 @@ chat.post('/', async (c) => {
       );
 
     // =================================================
-    // 23. CARD SẢN PHẨM
+    // 26. CARD SẢN PHẨM
+    //
+    // Ở đây product từ RAG đã đúng ProductSource
     // =================================================
 
     const sources: ProductSource[] =
-      products.map((product) => ({
-        product_id: product.id,
-        name: product.name,
-        price: product.price,
-        stock: product.stock,
-        image_url: product.image_url,
-        category_name:
-          product.category_name,
-      }));
+      products.map(
+        (product) => ({
+          product_id:
+            product.id,
+
+          name:
+            product.name,
+
+          price:
+            product.price,
+
+          stock:
+            product.stock,
+
+          image_url:
+            product.image_url ?? null,
+
+          category_name:
+            product.category_name ?? null,
+        })
+      );
 
     // =================================================
-    // 24. TRẢ KẾT QUẢ
+    // 27. RETURN
     // =================================================
 
     return c.json({
